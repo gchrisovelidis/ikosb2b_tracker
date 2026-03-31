@@ -360,14 +360,6 @@ def get_theme_css(dark_mode: bool) -> str:
         margin-bottom: 0.8rem;
     }}
 
-    .motivation-text {{
-        color: {text};
-        font-size: 1.08rem;
-        font-weight: 600;
-        line-height: 1.5;
-        padding-top: 0.15rem;
-    }}
-
     .greeting-screen {{
         min-height: 100vh;
         display: flex;
@@ -546,13 +538,6 @@ def render_progress() -> None:
             unsafe_allow_html=True,
         )
         st.progress(pct / 100 if total else 0)
-
-    with st.container(border=True):
-        st.subheader("Team Message")
-        st.markdown(
-            f'<div class="motivation-text">{get_motivation(pct)}</div>',
-            unsafe_allow_html=True,
-        )
 
 def main() -> None:
     init_session()
