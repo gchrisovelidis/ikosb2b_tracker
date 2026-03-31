@@ -2,7 +2,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import time
 
-import pandas as pd
 import streamlit as st
 
 from auth import verify_password
@@ -44,6 +43,7 @@ def init_session_state() -> None:
         "logged_in": False,
         "user_id": None,
         "username": None,
+        "display_name": None,
         "is_admin": False,
         "theme_mode": "Light",
         "intro_shown": False,
@@ -62,7 +62,11 @@ def get_theme_css(dark_mode: bool) -> str:
     text = "#E5E7EB" if dark_mode else "#111827"
     muted = "#94A3B8" if dark_mode else "#6B7280"
     accent = "#2563EB"
-    shadow = "0 10px 24px rgba(0, 0, 0, 0.22)" if dark_mode else "0 8px 24px rgba(15, 23, 42, 0.08)"
+    shadow = (
+        "0 10px 24px rgba(0, 0, 0, 0.22)"
+        if dark_mode
+        else "0 8px 24px rgba(15, 23, 42, 0.08)"
+    )
 
     return f"""
     <style>
@@ -101,6 +105,7 @@ def get_theme_css(dark_mode: bool) -> str:
     .datetime-wrap {{
         text-align: center;
         margin-top: 0.15rem;
+        margin-bottom: 1.1rem;
     }}
 
     .datetime-text {{
@@ -145,7 +150,7 @@ def get_theme_css(dark_mode: bool) -> str:
     }}
 
     .login-wrap {{
-        max-width: 480px;
+        max-width: 760px;
         margin: 2rem auto 0 auto;
     }}
 
@@ -202,6 +207,53 @@ def get_theme_css(dark_mode: bool) -> str:
         background: {card_bg};
     }}
 
+    .rank-badge {{
+        display: inline-block;
+        min-width: 34px;
+        text-align: center;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        font-weight: 700;
+    }}
+
+    .gold {{
+        background: rgba(234, 179, 8, 0.18);
+        color: #CA8A04;
+    }}
+
+    .silver {{
+        background: rgba(148, 163, 184, 0.18);
+        color: #64748B;
+    }}
+
+    .bronze {{
+        background: rgba(180, 83, 9, 0.16);
+        color: #B45309;
+    }}
+
+    .plain-rank {{
+        background: rgba(59, 130, 246, 0.12);
+        color: #2563EB;
+    }}
+
+    .complete-pill {{
+        display: inline-block;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 700;
+        background: rgba(22, 163, 74, 0.14);
+        color: #16A34A;
+    }}
+
+    .progress-pill {{
+        display: inline-block;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 700;
+        background: rgba(37, 99, 235, 0.12);
+        color: #2563EB;
+    }}
+
     [data-testid="stCheckbox"] label p,
     .stTextInput label,
     .stRadio label,
@@ -213,20 +265,6 @@ def get_theme_css(dark_mode: bool) -> str:
     }}
     </style>
     """
-
-
-def render_section_start(title: str) -> None:
-    st.markdown(
-        f"""
-        <div class="section-card">
-            <div class="section-title">{title}</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_section_end() -> None:
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_header() -> None:
@@ -249,33 +287,31 @@ def render_header() -> None:
 
 
 def render_login() -> None:
-    st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Login</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Login</div>', unsafe_allow_html=True)
 
-    with st.form("login_form", clear_on_submit=False):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login", use_container_width=True)
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login", use_container_width=True)
 
-    if submitted:
-        user = get_user_by_username(username.strip())
+        if submitted:
+            user = get_user_by_username(username.strip())
 
-        if not user:
-            st.error("Invalid username or password.")
-        elif not verify_password(password, user["password_hash"]):
-            st.error("Invalid username or password.")
-        else:
-            st.session_state.logged_in = True
-            st.session_state.user_id = user["id"]
-            st.session_state.username = user["username"]
-            st.session_state.is_admin = bool(user["is_admin"])
-            st.session_state.intro_shown = False
-            st.rerun()
+            if not user:
+                st.error("Invalid username or password.")
+            elif not verify_password(password, user["password_hash"]):
+                st.error("Invalid username or password.")
+            else:
+                st.session_state.logged_in = True
+                st.session_state.user_id = user["id"]
+                st.session_state.username = user["username"]
+                st.session_state.display_name = user["display_name"]
+                st.session_state.is_admin = bool(user["is_admin"])
+                st.rerun()
 
-    st.info("The daily checklist resets automatically based on the current date.")
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_sidebar() -> None:
@@ -289,7 +325,8 @@ def render_sidebar() -> None:
         st.session_state.theme_mode = theme
 
         st.markdown("---")
-        st.write(f"Logged in as: **{st.session_state.username}**")
+        name_to_show = st.session_state.display_name or st.session_state.username
+        st.write(f"Logged in as: **{name_to_show}**")
         if st.session_state.is_admin:
             st.caption("Admin account")
 
@@ -297,8 +334,8 @@ def render_sidebar() -> None:
             st.session_state.logged_in = False
             st.session_state.user_id = None
             st.session_state.username = None
+            st.session_state.display_name = None
             st.session_state.is_admin = False
-            st.session_state.intro_shown = False
             st.rerun()
 
 
@@ -322,7 +359,8 @@ def render_user_tasks() -> None:
     day = get_today_str()
     statuses = get_user_task_status(st.session_state.user_id, day)
 
-    render_section_start("Today’s Tasks")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Today’s Tasks</div>', unsafe_allow_html=True)
 
     for row in statuses:
         key = f"task_{row['task_id']}_{day}_{st.session_state.user_id}"
@@ -343,7 +381,7 @@ def render_user_tasks() -> None:
             )
             st.rerun()
 
-    render_section_end()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_progress_card() -> None:
@@ -352,7 +390,8 @@ def render_progress_card() -> None:
     pct = percentage(completed, total)
     message = progress_message(completed, total)
 
-    render_section_start("Your Progress")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Your Progress</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="metric-big">{pct}%</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="metric-label">{completed}/{total} tasks completed</div>',
@@ -360,58 +399,77 @@ def render_progress_card() -> None:
     )
     st.progress(pct / 100 if total else 0)
     st.markdown(f'<div class="helper-text">{message}</div>', unsafe_allow_html=True)
-    render_section_end()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_team_card() -> None:
     day = get_today_str()
     avg = round(get_team_average(day))
 
-    render_section_start("Team Average")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Team Average</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="metric-big">{avg}%</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="metric-label">Average completion across all users today</div>',
         unsafe_allow_html=True,
     )
     st.progress(avg / 100)
-    render_section_end()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def get_rank_badge(rank: int) -> str:
+    if rank == 1:
+        return '<span class="rank-badge gold">🥇 1</span>'
+    if rank == 2:
+        return '<span class="rank-badge silver">🥈 2</span>'
+    if rank == 3:
+        return '<span class="rank-badge bronze">🥉 3</span>'
+    return f'<span class="rank-badge plain-rank">{rank}</span>'
+
+
+def get_status_badge(pct: int) -> str:
+    if pct == 100:
+        return '<span class="complete-pill">Completed</span>'
+    return '<span class="progress-pill">In Progress</span>'
 
 
 def render_leaderboard() -> None:
     day = get_today_str()
     rows = get_leaderboard(day)
 
-    data = []
-    for idx, row in enumerate(rows, start=1):
-        total = row["total_count"] or 0
-        completed = row["completed_count"] or 0
-        pct = percentage(completed, total)
-        status = "✅ Completed" if pct == 100 else "In Progress"
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Today’s Leaderboard</div>', unsafe_allow_html=True)
 
-        data.append(
-            {
-                "Rank": idx,
-                "User": row["display_name"],
-                "Completed": f"{completed}/{total}",
-                "Progress %": pct,
-                "Status": status,
-            }
-        )
-
-    df = pd.DataFrame(data)
-
-    render_section_start("Today’s Leaderboard")
-    if df.empty:
+    if not rows:
         st.info("No leaderboard data yet.")
     else:
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    render_section_end()
+        header = st.columns([0.9, 2.2, 1.2, 1.2, 1.4])
+        header[0].markdown("**Rank**")
+        header[1].markdown("**Name**")
+        header[2].markdown("**Completed**")
+        header[3].markdown("**Progress %**")
+        header[4].markdown("**Status**")
+
+        for idx, row in enumerate(rows, start=1):
+            total = row["total_count"] or 0
+            completed = row["completed_count"] or 0
+            pct = percentage(completed, total)
+
+            cols = st.columns([0.9, 2.2, 1.2, 1.2, 1.4])
+            cols[0].markdown(get_rank_badge(idx), unsafe_allow_html=True)
+            cols[1].markdown(f"**{row['display_name']}**")
+            cols[2].markdown(f"{completed}/{total}")
+            cols[3].markdown(f"**{pct}%**")
+            cols[4].markdown(get_status_badge(pct), unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_admin_panel() -> None:
     tasks = get_tasks()
 
-    render_section_start("Admin Panel")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Admin Panel</div>', unsafe_allow_html=True)
     st.caption("You can rename the shared tasks below.")
 
     with st.form("admin_task_form"):
@@ -436,31 +494,32 @@ def render_admin_panel() -> None:
             st.success("Tasks updated successfully.")
             st.rerun()
 
-    render_section_end()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_admin_credentials_reference() -> None:
     passwords = [
-        {"Username": "gmichailidis", "Password": "gmich59853"},
-        {"Username": "nmichailidou", "Password": "nmich47291"},
-        {"Username": "oemichailidou", "Password": "oemic38476"},
-        {"Username": "nspanopoulou", "Password": "nspan91824"},
-        {"Username": "idimopoulos", "Password": "idimo56317"},
-        {"Username": "ggatidis", "Password": "ggati24068"},
-        {"Username": "edkorderi", "Password": "edkor85193"},
-        {"Username": "rkougioumtzidou", "Password": "rkoug41756"},
-        {"Username": "gchrisovelidis", "Password": "gchrisovelidis22193"},
+        {"Username": "gmichailidis", "Display Name": "Michailidis", "Password": "gmich59853"},
+        {"Username": "nmichailidou", "Display Name": "Nikoletta", "Password": "nmich47291"},
+        {"Username": "oemichailidou", "Display Name": "Olga", "Password": "oemic38476"},
+        {"Username": "nspanopoulou", "Display Name": "Nefeli", "Password": "nspan91824"},
+        {"Username": "idimopoulos", "Display Name": "Giannis", "Password": "idimo56317"},
+        {"Username": "ggatidis", "Display Name": "Gatidis", "Password": "ggati24068"},
+        {"Username": "edkorderi", "Display Name": "Evridiki", "Password": "edkor85193"},
+        {"Username": "rkougioumtzidou", "Display Name": "Rafailia", "Password": "rkoug41756"},
+        {"Username": "gchrisovelidis", "Display Name": "George", "Password": "gchrisovelidis22193"},
     ]
-    df = pd.DataFrame(passwords)
 
-    render_section_start("Initial User Credentials")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">Initial User Credentials</div>',
+        unsafe_allow_html=True,
+    )
     st.warning("For first setup only. Remove this section later.")
-    st.dataframe(df, use_container_width=True, hide_index=True)
-    render_section_end()
+    st.dataframe(passwords, use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-import os
-if os.path.exists("tracker.db"):
-    os.remove("tracker.db")
+
 def main() -> None:
     init_db()
     init_session_state()
@@ -468,17 +527,14 @@ def main() -> None:
     dark_mode = st.session_state.theme_mode == "Dark"
     st.markdown(get_theme_css(dark_mode), unsafe_allow_html=True)
 
+    render_intro_greeting()
+
     if not st.session_state.logged_in:
         render_header()
         render_login()
         return
 
     render_sidebar()
-
-    dark_mode = st.session_state.theme_mode == "Dark"
-    st.markdown(get_theme_css(dark_mode), unsafe_allow_html=True)
-
-    render_intro_greeting()
     render_header()
 
     left, right = st.columns([1.35, 1], gap="large")
