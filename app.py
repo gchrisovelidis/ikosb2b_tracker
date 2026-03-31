@@ -514,7 +514,10 @@ def render_tasks() -> tuple[int, int]:
                 updated_at = row["updated_at"] or ""
                 if "T" in updated_at:
                     try:
-                        updated_at = datetime.fromisoformat(updated_at).strftime("%H:%M")
+                        dt_obj = datetime.fromisoformat(updated_at)
+                        if dt_obj.tzinfo is not None:
+                            dt_obj = dt_obj.astimezone(ZoneInfo(TIMEZONE))
+                        updated_at = dt_obj.strftime("%H:%M")
                     except ValueError:
                         pass
                 st.markdown(

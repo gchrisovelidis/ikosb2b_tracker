@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
+TIMEZONE = ZoneInfo("Europe/Athens")
 DB_PATH = Path("tracker.db")
 
 
@@ -101,7 +103,7 @@ def set_task_completion(day: str, task_name: str, completed: bool, updated_by: s
             day,
             1 if completed else 0,
             updated_by if completed else None,
-            datetime.now().isoformat(timespec="seconds"),
+            datetime.now(TIMEZONE).isoformat(timespec="seconds"),
         ),
     )
 
