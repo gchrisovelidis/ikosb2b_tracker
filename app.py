@@ -231,7 +231,6 @@ def get_theme_css(dark_mode: bool) -> str:
     weather_bg = "#0F172A" if dark_mode else "#FFFFFF"
     weather_border = "#243041" if dark_mode else "#E5E7EB"
     weather_icon_bg = "#172554" if dark_mode else "#EFF6FF"
-    quote_bg = "#0F172A" if dark_mode else "#EEF4FF"
 
     return f"""
     <style>
@@ -361,13 +360,13 @@ def get_theme_css(dark_mode: bool) -> str:
         margin-bottom: 0.8rem;
     }}
 
-    .motivation-text {
+    .motivation-text {{
         color: {text};
         font-size: 1.08rem;
         font-weight: 600;
         line-height: 1.5;
         padding-top: 0.15rem;
-    }
+    }}
 
     .greeting-screen {{
         min-height: 100vh;
@@ -400,7 +399,6 @@ def get_theme_css(dark_mode: bool) -> str:
     }}
     </style>
     """
-
 
 def render_intro() -> None:
     if not st.session_state.intro_shown:
@@ -555,7 +553,6 @@ def render_progress() -> None:
             f'<div class="motivation-text">{get_motivation(pct)}</div>',
             unsafe_allow_html=True,
         )
-
 
 def main() -> None:
     init_session()
