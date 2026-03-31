@@ -103,7 +103,7 @@ def set_task_completion(day: str, task_name: str, completed: bool, updated_by: s
             day,
             1 if completed else 0,
             updated_by if completed else None,
-            datetime.now(TIMEZONE).isoformat(timespec="seconds"),
+            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
         ),
     )
 

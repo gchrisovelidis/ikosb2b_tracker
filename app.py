@@ -512,14 +512,11 @@ def render_tasks() -> tuple[int, int]:
 
             if new_value and row["updated_by"]:
                 updated_at = row["updated_at"] or ""
-                if "T" in updated_at:
-                    try:
-                        dt_obj = datetime.fromisoformat(updated_at)
-                        if dt_obj.tzinfo is not None:
-                            dt_obj = dt_obj.astimezone(ZoneInfo(TIMEZONE))
-                        updated_at = dt_obj.strftime("%H:%M")
-                    except ValueError:
-                        pass
+                try:
+                    if len(updated_at) >= 16:
+                        updated_at = updated_at[11:16]
+                except Exception:
+                    pass
                 st.markdown(
                     f'<div class="task-meta">Completed by {row["updated_by"]} • {updated_at}</div>',
                     unsafe_allow_html=True,
