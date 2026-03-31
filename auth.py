@@ -1,9 +1,10 @@
 import hashlib
 import hmac
 import secrets
+from typing import Optional
 
 
-def hash_password(password: str, salt: str | None = None) -> str:
+def hash_password(password: str, salt: Optional[str] = None) -> str:
     """
     Hash a password using PBKDF2-HMAC-SHA256.
     Stored format: salt$hash
