@@ -361,15 +361,13 @@ def get_theme_css(dark_mode: bool) -> str:
         margin-bottom: 0.8rem;
     }}
 
-    .quote-box {{
-        background: {quote_bg};
-        border: 1px solid {border};
-        border-radius: 18px;
-        padding: 1rem 1.1rem;
+    .motivation-text {
         color: {text};
-        font-size: 1.02rem;
+        font-size: 1.08rem;
         font-weight: 600;
-    }}
+        line-height: 1.5;
+        padding-top: 0.15rem;
+    }
 
     .greeting-screen {{
         min-height: 100vh;
@@ -552,8 +550,11 @@ def render_progress() -> None:
         st.progress(pct / 100 if total else 0)
 
     with st.container(border=True):
-        st.subheader("Keep Going")
-        st.markdown(f'<div class="quote-box">{get_motivation(pct)}</div>', unsafe_allow_html=True)
+        st.subheader("Team Message")
+        st.markdown(
+            f'<div class="motivation-text">{get_motivation(pct)}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def main() -> None:
