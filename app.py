@@ -1,5 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import time
 
 import pandas as pd
 import streamlit as st
@@ -26,12 +27,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-
-TIMEZONE = ZoneInfo("Europe/Athens")
+TIMEZONE = "Europe/Athens"
+GREETING_SECONDS = 3.2
 
 
 def get_now() -> datetime:
-    return datetime.now(TIMEZONE)
+    return datetime.now(ZoneInfo(TIMEZONE))
 
 
 def get_today_str() -> str:
@@ -45,159 +46,212 @@ def init_session_state() -> None:
         "username": None,
         "is_admin": False,
         "theme_mode": "Light",
+        "intro_shown": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 
-def inject_css(theme_mode: str) -> None:
-    dark_mode = theme_mode == "Dark"
-
-    bg = "#0B1220" if dark_mode else "#F5F7FB"
+def get_theme_css(dark_mode: bool) -> str:
+    bg = "#0B1220" if dark_mode else "#F3F4F6"
+    greeting_bg = "#0B1220" if dark_mode else "#F3F4F6"
     card_bg = "#111827" if dark_mode else "#FFFFFF"
     border = "#243041" if dark_mode else "#E5E7EB"
-    text = "#F8FAFC" if dark_mode else "#111827"
+    title = "#F8FAFC" if dark_mode else "#0F172A"
+    text = "#E5E7EB" if dark_mode else "#111827"
     muted = "#94A3B8" if dark_mode else "#6B7280"
     accent = "#2563EB"
-    secondary = "#0F172A" if dark_mode else "#F8FAFC"
-    success = "#16A34A"
-    warning = "#D97706"
+    shadow = "0 10px 24px rgba(0, 0, 0, 0.22)" if dark_mode else "0 8px 24px rgba(15, 23, 42, 0.08)"
 
+    return f"""
+    <style>
+    .stApp {{
+        background: {bg};
+    }}
+
+    header, footer, #MainMenu {{
+        visibility: hidden;
+    }}
+
+    .block-container {{
+        max-width: 1300px;
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+    }}
+
+    .title-wrap {{
+        text-align: center;
+        margin-bottom: 1.2rem;
+    }}
+
+    .main-title {{
+        font-size: 2.7rem;
+        font-weight: 800;
+        color: {title};
+        margin-bottom: 0.15rem;
+        letter-spacing: -0.03em;
+    }}
+
+    .subtle-text {{
+        color: {muted};
+        font-size: 1.08rem;
+    }}
+
+    .datetime-wrap {{
+        text-align: center;
+        margin-top: 0.15rem;
+    }}
+
+    .datetime-text {{
+        color: {muted};
+        font-size: 1rem;
+        font-weight: 500;
+    }}
+
+    .section-card {{
+        background: {card_bg};
+        border: 1px solid {border};
+        border-radius: 18px;
+        padding: 1.15rem 1.15rem;
+        box-shadow: {shadow};
+        margin-bottom: 1rem;
+    }}
+
+    .section-title {{
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: {title};
+        margin-bottom: 0.8rem;
+    }}
+
+    .metric-big {{
+        font-size: 2rem;
+        font-weight: 800;
+        color: {accent};
+        line-height: 1.1;
+    }}
+
+    .metric-label {{
+        color: {muted};
+        font-size: 0.95rem;
+        margin-top: 0.2rem;
+    }}
+
+    .helper-text {{
+        color: {muted};
+        font-size: 0.98rem;
+        margin-top: 0.7rem;
+    }}
+
+    .login-wrap {{
+        max-width: 480px;
+        margin: 2rem auto 0 auto;
+    }}
+
+    .greeting-screen {{
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: {greeting_bg};
+    }}
+
+    .greeting-text {{
+        font-size: 112px;
+        font-weight: 800;
+        line-height: 1;
+        color: {title};
+        text-align: center;
+        animation: fadeInOut 4s ease-in-out forwards;
+        padding: 0 30px;
+        letter-spacing: -0.03em;
+    }}
+
+    @keyframes fadeInOut {{
+        0% {{
+            opacity: 0;
+            transform: translateY(8px);
+        }}
+        15% {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+        75% {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+        100% {{
+            opacity: 0;
+            transform: translateY(-8px);
+        }}
+    }}
+
+    div[data-testid="stMetric"] {{
+        background: {card_bg};
+        border: 1px solid {border};
+        padding: 1rem;
+        border-radius: 16px;
+    }}
+
+    div[data-testid="stProgressBar"] > div > div {{
+        border-radius: 999px;
+    }}
+
+    [data-testid="stSidebar"] {{
+        background: {card_bg};
+    }}
+
+    [data-testid="stCheckbox"] label p,
+    .stTextInput label,
+    .stRadio label,
+    .stCaption,
+    .stMarkdown,
+    .stDataFrame,
+    .stAlert {{
+        color: {text};
+    }}
+    </style>
+    """
+
+
+def render_section_start(title: str) -> None:
     st.markdown(
         f"""
-        <style>
-        .stApp {{
-            background: {bg};
-        }}
-
-        header, footer, #MainMenu {{
-            visibility: hidden;
-        }}
-
-        .block-container {{
-            max-width: 1300px;
-            padding-top: 1.5rem;
-            padding-bottom: 2rem;
-        }}
-
-        .main-title {{
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: {text};
-            margin-bottom: 0.25rem;
-        }}
-
-        .subtle-text {{
-            color: {muted};
-            font-size: 0.98rem;
-            margin-bottom: 1.25rem;
-        }}
-
-        .card {{
-            background: {card_bg};
-            border: 1px solid {border};
-            border-radius: 18px;
-            padding: 1.2rem 1.2rem;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-            margin-bottom: 1rem;
-        }}
-
-        .greeting {{
-            font-size: 1.65rem;
-            font-weight: 700;
-            color: {text};
-            margin-bottom: 0.35rem;
-        }}
-
-        .meta {{
-            color: {muted};
-            font-size: 0.95rem;
-        }}
-
-        .section-title {{
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: {text};
-            margin-bottom: 0.8rem;
-        }}
-
-        .pill {{
-            display: inline-block;
-            padding: 0.38rem 0.75rem;
-            border-radius: 999px;
-            background: {secondary};
-            border: 1px solid {border};
-            color: {text};
-            font-size: 0.88rem;
-            margin-right: 0.4rem;
-            margin-bottom: 0.4rem;
-        }}
-
-        .metric-big {{
-            font-size: 2rem;
-            font-weight: 800;
-            color: {accent};
-            line-height: 1.1;
-        }}
-
-        .metric-label {{
-            color: {muted};
-            font-size: 0.92rem;
-            margin-top: 0.2rem;
-        }}
-
-        .good {{
-            color: {success};
-            font-weight: 700;
-        }}
-
-        .warn {{
-            color: {warning};
-            font-weight: 700;
-        }}
-
-        .stDataFrame, .stTable {{
-            border-radius: 14px;
-            overflow: hidden;
-        }}
-
-        div[data-testid="stMetric"] {{
-            background: {card_bg};
-            border: 1px solid {border};
-            padding: 1rem;
-            border-radius: 16px;
-        }}
-
-        div[data-testid="stProgressBar"] > div > div {{
-            border-radius: 999px;
-        }}
-
-        .login-wrap {{
-            max-width: 480px;
-            margin: 2rem auto 0 auto;
-        }}
-        </style>
+        <div class="section-card">
+            <div class="section-title">{title}</div>
         """,
         unsafe_allow_html=True,
     )
 
 
+def render_section_end() -> None:
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 def render_header() -> None:
-    st.markdown('<div class="main-title">Ikos B2B</div>', unsafe_allow_html=True)
+    now = get_now()
+    pretty_date = now.strftime("%A, %d %B %Y")
+    current_time = now.strftime("%H:%M")
+
     st.markdown(
-        '<div class="subtle-text">Daily Task Tracker</div>',
+        f"""
+        <div class="title-wrap">
+            <div class="main-title">Ikos B2B</div>
+            <div class="subtle-text">Daily Task Tracker</div>
+        </div>
+        <div class="datetime-wrap">
+            <div class="datetime-text">{pretty_date} • {current_time} • Europe/Athens</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
 
 def render_login() -> None:
     st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-title">Login</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Login</div>', unsafe_allow_html=True)
 
     with st.form("login_form", clear_on_submit=False):
         username = st.text_input("Username")
@@ -216,14 +270,11 @@ def render_login() -> None:
             st.session_state.user_id = user["id"]
             st.session_state.username = user["username"]
             st.session_state.is_admin = bool(user["is_admin"])
+            st.session_state.intro_shown = False
             st.rerun()
 
+    st.info("The daily checklist resets automatically based on the current date.")
     st.markdown("</div>", unsafe_allow_html=True)
-
-    st.info(
-        "Version 1 note: the app resets completion automatically each day based on the current date."
-    )
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -247,30 +298,31 @@ def render_sidebar() -> None:
             st.session_state.user_id = None
             st.session_state.username = None
             st.session_state.is_admin = False
+            st.session_state.intro_shown = False
             st.rerun()
 
 
-def render_greeting_card() -> None:
-    now = get_now()
-    greeting = get_greeting(now)
-    pretty_date = now.strftime("%A, %d %B %Y")
-    current_time = now.strftime("%H:%M")
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown(f'<div class="greeting">{greeting}</div>', unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="meta">{pretty_date} • {current_time} • Europe/Athens</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+def render_intro_greeting() -> None:
+    if not st.session_state.intro_shown:
+        now = get_now()
+        st.markdown(
+            f"""
+            <div class="greeting-screen">
+                <div class="greeting-text">{get_greeting(now)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        time.sleep(GREETING_SECONDS)
+        st.session_state.intro_shown = True
+        st.rerun()
 
 
 def render_user_tasks() -> None:
     day = get_today_str()
     statuses = get_user_task_status(st.session_state.user_id, day)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Today’s Tasks</div>', unsafe_allow_html=True)
+    render_section_start("Today’s Tasks")
 
     for row in statuses:
         key = f"task_{row['task_id']}_{day}_{st.session_state.user_id}"
@@ -291,7 +343,7 @@ def render_user_tasks() -> None:
             )
             st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_section_end()
 
 
 def render_progress_card() -> None:
@@ -300,34 +352,29 @@ def render_progress_card() -> None:
     pct = percentage(completed, total)
     message = progress_message(completed, total)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Your Progress</div>', unsafe_allow_html=True)
+    render_section_start("Your Progress")
     st.markdown(f'<div class="metric-big">{pct}%</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="metric-label">{completed}/{total} tasks completed</div>',
         unsafe_allow_html=True,
     )
     st.progress(pct / 100 if total else 0)
-    st.markdown(
-        f'<div class="meta" style="margin-top: 0.6rem;">{message}</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(f'<div class="helper-text">{message}</div>', unsafe_allow_html=True)
+    render_section_end()
 
 
 def render_team_card() -> None:
     day = get_today_str()
     avg = round(get_team_average(day))
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Team Average</div>', unsafe_allow_html=True)
+    render_section_start("Team Average")
     st.markdown(f'<div class="metric-big">{avg}%</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="metric-label">Average completion across all users today</div>',
         unsafe_allow_html=True,
     )
     st.progress(avg / 100)
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_section_end()
 
 
 def render_leaderboard() -> None:
@@ -344,7 +391,7 @@ def render_leaderboard() -> None:
         data.append(
             {
                 "Rank": idx,
-                "User": row["username"],
+                "User": row["display_name"],
                 "Completed": f"{completed}/{total}",
                 "Progress %": pct,
                 "Status": status,
@@ -353,22 +400,18 @@ def render_leaderboard() -> None:
 
     df = pd.DataFrame(data)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Today’s Leaderboard</div>', unsafe_allow_html=True)
-
+    render_section_start("Today’s Leaderboard")
     if df.empty:
         st.info("No leaderboard data yet.")
     else:
         st.dataframe(df, use_container_width=True, hide_index=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_section_end()
 
 
 def render_admin_panel() -> None:
     tasks = get_tasks()
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Admin Panel</div>', unsafe_allow_html=True)
+    render_section_start("Admin Panel")
     st.caption("You can rename the shared tasks below.")
 
     with st.form("admin_task_form"):
@@ -393,7 +436,7 @@ def render_admin_panel() -> None:
             st.success("Tasks updated successfully.")
             st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_section_end()
 
 
 def render_admin_credentials_reference() -> None:
@@ -410,30 +453,33 @@ def render_admin_credentials_reference() -> None:
     ]
     df = pd.DataFrame(passwords)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-title">Initial User Credentials</div>',
-        unsafe_allow_html=True,
-    )
-    st.warning(
-        "For first setup only. After testing, I recommend removing this panel or moving credentials to a safer admin-only source."
-    )
+    render_section_start("Initial User Credentials")
+    st.warning("For first setup only. Remove this section later.")
     st.dataframe(df, use_container_width=True, hide_index=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_section_end()
 
-
+import os
+if os.path.exists("tracker.db"):
+    os.remove("tracker.db")
 def main() -> None:
     init_db()
     init_session_state()
-    inject_css(st.session_state.theme_mode)
-    render_header()
+
+    dark_mode = st.session_state.theme_mode == "Dark"
+    st.markdown(get_theme_css(dark_mode), unsafe_allow_html=True)
 
     if not st.session_state.logged_in:
+        render_header()
         render_login()
         return
 
     render_sidebar()
-    render_greeting_card()
+
+    dark_mode = st.session_state.theme_mode == "Dark"
+    st.markdown(get_theme_css(dark_mode), unsafe_allow_html=True)
+
+    render_intro_greeting()
+    render_header()
 
     left, right = st.columns([1.35, 1], gap="large")
 

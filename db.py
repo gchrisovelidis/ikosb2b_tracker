@@ -8,15 +8,15 @@ DB_PATH = Path("tracker.db")
 
 
 DEFAULT_USERS = [
-    ("gmichailidis", "gmich59853", 0),
-    ("nmichailidou", "nmich47291", 0),
-    ("oemichailidou", "oemic38476", 0),
-    ("nspanopoulou", "nspan91824", 0),
-    ("idimopoulos", "idimo56317", 0),
-    ("ggatidis", "ggati24068", 0),
-    ("edkorderi", "edkor85193", 0),
-    ("rkougioumtzidou", "rkoug41756", 0),
-    ("gchrisovelidis", "gchrisovelidis22193", 1),
+    ("gmichailidis", "Michailidis", "gmich59853", 0),
+    ("nmichailidou", "Nikoletta", "nmich47291", 0),
+    ("oemichailidou", "Olga", "oemic38476", 0),
+    ("nspanopoulou", "Nefeli", "nspan91824", 0),
+    ("idimopoulos", "Giannis", "idimo56317", 0),
+    ("ggatidis", "Gatidis", "ggati24068", 0),
+    ("edkorderi", "Evridiki", "edkor85193", 0),
+    ("rkougioumtzidou", "Rafailia", "rkoug41756", 0),
+    ("gchrisovelidis", "George", "gchrisovelidis22193", 1),
 ]
 
 DEFAULT_TASKS = [
@@ -41,6 +41,7 @@ def init_db() -> None:
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            display_name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             is_admin INTEGER NOT NULL DEFAULT 0
         )
@@ -85,13 +86,13 @@ def seed_users(conn: sqlite3.Connection) -> None:
     count = cur.fetchone()["cnt"]
 
     if count == 0:
-        for username, password, is_admin in DEFAULT_USERS:
+        for username, display_name, password, is_admin in DEFAULT_USERS:
             cur.execute(
                 """
-                INSERT INTO users (username, password_hash, is_admin)
-                VALUES (?, ?, ?)
+                INSERT INTO users (username, display_name, password_hash, is_admin)
+                VALUES (?, ?, ?, ?)
                 """,
-                (username, hash_password(password), is_admin),
+                (username, display_name, hash_password(password), is_admin),
             )
         conn.commit()
 
@@ -117,43 +118,16 @@ def get_user_by_username(username: str):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
+        """
+        SELECT id, username, display_name, password_hash, is_admin
+        FROM users
+        WHERE username = ?
+        """,
         (username,),
     )
     row = cur.fetchone()
     conn.close()
     return row
-
-
-def get_all_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, username, is_admin
-        FROM users
-        ORDER BY is_admin DESC, username ASC
-        """
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-def get_regular_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, username, is_admin
-        FROM users
-        WHERE is_admin = 0
-        ORDER BY username ASC
-        """
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return rows
 
 
 def get_tasks():
@@ -272,6 +246,7 @@ def get_leaderboard(day: str):
         """
         SELECT
             u.username,
+            u.display_name,
             COALESCE(SUM(c.completed), 0) AS completed_count,
             COUNT(t.id) AS total_count,
             MAX(c.updated_at) AS last_update
@@ -282,8 +257,8 @@ def get_leaderboard(day: str):
             AND c.task_id = t.id
             AND c.day = ?
         WHERE u.is_admin = 0
-        GROUP BY u.id, u.username
-        ORDER BY completed_count DESC, last_update ASC, u.username ASC
+        GROUP BY u.id, u.username, u.display_name
+        ORDER BY completed_count DESC, last_update ASC, u.display_name ASC
         """,
         (day,),
     )
